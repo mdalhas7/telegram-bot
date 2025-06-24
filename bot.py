@@ -1,45 +1,47 @@
 import os
 import logging
+import aiohttp
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
-from openai import OpenAI
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Logging (ডিবাগিং এর জন্য)
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+# Logging সেটআপ
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-# API Key গুলো এনভায়রনমেন্ট থেকে নেওয়া
+# Telegram Token & DeepSeek API Key
 TELEGRAM_TOKEN = os.environ['BOT_TOKEN']
-OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
-
-# OpenAI Client তৈরি
-client = OpenAI(api_key=OPENAI_API_KEY)
+DEEPSEEK_API_KEY = os.environ['DEEPSEEK_API_KEY']
 
 # /start কমান্ড হ্যান্ডলার
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_name = update.effective_user.first_name
-    await update.message.reply_text(f"👋 হ্যালো {user_name}! আমি ChatGPT বট। আমাকে কিছু জিজ্ঞেস করো।")
+    await update.message.reply_text(f"👋 হ্যালো {update.effective_user.first_name}! আমি DeepSeek AI bot। আপনি এখন প্রশ্ন করতে পারেন।")
 
 # মেসেজ হ্যান্ডলার
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_input = update.message.text
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # চাইলে এখানে gpt-4 লিখতে পারো (তোমার অ্যাক্সেস থাকলে)
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": user_input}
-            ]
-        )
-        bot_reply = response.choices[0].message.content
-        await update.message.reply_text(bot_reply)
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "model": "deepseek-chat",  # deepseek-coder/chat বা deepseek-chat উভয় ব্যবহারযোগ্য
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": user_input}
+                ]
+            }
+
+            async with session.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload) as response:
+                result = await response.json()
+                reply = result['choices'][0]['message']['content']
+                await update.message.reply_text(reply)
 
     except Exception as e:
-        await update.message.reply_text("❌ কিছু একটা ভুল হয়েছে।")
-        logging.error(f"Error: {e}")
+        await update.message.reply_text("⚠️ কিছু একটা ভুল হয়েছে।")
+        logging.error(f"DeepSeek API Error: {e}")
 
 # অ্যাপ রান করানো
 if __name__ == '__main__':
@@ -48,5 +50,6 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("✅ Bot is running...")
+    print("✅ Bot is running with DeepSeek API...")
     app.run_polling()
+    
