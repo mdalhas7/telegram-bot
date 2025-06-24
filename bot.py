@@ -1,14 +1,18 @@
+import os
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# ✅ /start কমান্ডে স্বাগতম বার্তা
+# টোকেন Railway এর Variables থেকে নিবে
+TOKEN = os.environ['BOT_TOKEN']
+
+# /start কমান্ডে স্বাগত বার্তা
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     await update.message.reply_text(
         f"আসসালামু আলাইকুম {user_name}!\nআপনাকে আমাদের গ্রুপে স্বাগতম 🤝"
     )
 
-# ✅ স্বয়ংক্রিয় মেসেজ রিপ্লাই (সালাম + প্রশ্ন উত্তর)
+# মেসেজ অনুযায়ী উত্তর দেওয়া
 async def auto_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message.text.lower().strip()
 
@@ -24,11 +28,10 @@ async def auto_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("👤 অ্যাডমিন: @MsSumaiyaKhanom")
         return
 
-# ✅ বট চালু করা
+# মেইন ফাংশন: বট চালানো
 def main():
-    app = Application.builder().token("BOT_TOKEN").build()
+    app = ApplicationBuilder().token(TOKEN).build()
 
-    # Add handlers
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, auto_reply))
 
