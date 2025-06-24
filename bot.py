@@ -1,60 +1,70 @@
 import logging
-import httpx
-import asyncio
-import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
-# Enable logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-
-# DeepSeek API configuration
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
-
-async def ask_deepseek(prompt: str) -> str:
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "model": "deepseek-chat",
-        "messages": [{"role": "user", "content": prompt}]
-    }
-
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(DEEPSEEK_API_URL, headers=headers, json=data, timeout=20)
-            response.raise_for_status()
-            result = response.json()
-            return result["choices"][0]["message"]["content"]
-        except Exception as e:
-            logger.error(f"DeepSeek API Error: {e}")
-            return "❌ কিছু একটা ভুল হয়েছে।"
-
-# Telegram command handlers
+# Start command handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 হ্যালো! আমি ChatGPT বট। আমাকে কিছু জিজ্ঞেস করো।")
+    await update.message.reply_text(
+        "🎉 অভিনন্দন! আপনি সফলভাবে বটটি চালু করেছেন।\n\n"
+        "🔰 বটটি তৈরি করেছেন: @MsSumaiyaKhanom\n\n"
+        "✏️ এখন আপনি একসাথে একাধিক মোবাইল নাম্বার পাঠাতে পারেন।"
+    )
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
-    response = await ask_deepseek(user_message)
-    await update.message.reply_text(response)
+# When user sends numbers
+async def handle_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("Add 🔗 Link", callback_data='add_link'),
+            InlineKeyboardButton("Add ➕", callback_data='add_plus'),
+        ],
+        [
+            InlineKeyboardButton("Filter Prefix", callback_data='filter_prefix'),
+        ],
+        [
+            InlineKeyboardButton("✅ JOIN OUR CHANNEL", url="https://t.me/HACKERA17X"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    context.user_data["numbers"] = update.message.text
+    await update.message.reply_text(
+        "🛠️ Choose an action to perform on the numbers:\n\n🔧 Options below:",
+        reply_markup=reply_markup
+    )
 
-# Main function
+# When a button is clicked
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    numbers_text = context.user_data.get("numbers", "")
+    numbers = [line.strip() for line in numbers_text.splitlines() if line.strip()]
+
+    action = query.data
+    if action == 'add_link':
+        result = "\n".join([f"t.me/+{n.lstrip('+')}" for n in numbers])
+    elif action == 'add_plus':
+        result = "\n".join([f"+{n.lstrip('+')}" for n in numbers])
+    elif action == 'filter_prefix':
+        result = "\n".join([n.lstrip('+').replace("t.me/", "").replace("https://", "") for n in numbers])
+    else:
+        result = "❌ Unknown action!"
+
+    await query.message.reply_text(result)
+
+# Main function to run bot
 def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    import os
+    TOKEN = os.getenv("BOT_TOKEN")
+    app = ApplicationBuilder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_numbers))
+    app.add_handler(CallbackQueryHandler(button_handler))
+
     app.run_polling()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
