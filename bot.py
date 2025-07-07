@@ -1,70 +1,112 @@
-import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
+import requests
+import time
+from datetime import datetime
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+import phonenumbers
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Telegram credentials
+TOKEN = "7656622277:AAErgH8Dw66VT8KgiHZxHvUmKoKPuHbGGiM"
+CHAT_ID = "7656622277"
 
-# Start command handler
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "🎉 অভিনন্দন! আপনি সফলভাবে বটটি চালু করেছেন।\n\n"
-        "🔰 বটটি তৈরি করেছেন: @MsSumaiyaKhanom\n\n"
-        "✏️ এখন আপনি একসাথে একাধিক মোবাইল নাম্বার পাঠাতে পারেন।"
-    )
+# Website credentials
+USERNAME = "ajobcharacter443@gmail.com"
+PASSWORD = "A1#@$vi&"
+LOGIN_URL = "https://www.ivasms.com/portal/live/my_sms"
 
-# When user sends numbers
-async def handle_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# Main links
+MAIN_CHANNEL_LINK = "https://t.me/your_main_channel"
+NUMBER_GROUP_LINK = "https://t.me/your_number_group"
+BOT_OWNER_LINK = "https://t.me/your_owner"
+
+bot = Bot(TOKEN)
+
+def get_country_info(number):
+    """
+    Return country flag and name based on phone number
+    """
+    try:
+        parsed_number = phonenumbers.parse(number)
+        country_code = phonenumbers.region_code_for_number(parsed_number)  # e.g., 'BJ'
+        if not country_code:
+            return "🌍 Unknown"
+
+        # Build flag from country code
+        flag = "".join(chr(127397 + ord(c)) for c in country_code)
+        return f"{flag} {country_code}"
+    except:
+        return "🌍 Unknown"
+
+def login_and_fetch():
+    session = requests.Session()
+    login_data = {
+        "email": USERNAME,
+        "password": PASSWORD
+    }
+    session.post(LOGIN_URL, data=login_data)
+
+    # Example: fetch page (you will need to adapt this selector/endpoint)
+    response = session.get("https://www.ivasms.com/portal/live/my_sms")
+    return response.text  # or JSON if API
+
+def parse_messages(html):
+    """
+    এই ফাংশন ওয়েবসাইট থেকে নতুন মেসেজগুলো parse করবে।
+    এখন এখানে ডেমো মেসেজ দিচ্ছি। আসলে তোমাকে HTML দেখে ঠিক করতে হবে।
+    """
+    return [
+        {
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "number": "+22999123456",
+            "service": "WhatsApp",
+            "otp": "391-766",
+            "msg": "391-766 هو رمز التحقق الخاص بك"
+        }
+    ]
+
+def send_to_telegram(message):
     keyboard = [
         [
-            InlineKeyboardButton("Add 🔗 Link", callback_data='add_link'),
-            InlineKeyboardButton("Add ➕", callback_data='add_plus'),
+            InlineKeyboardButton("📢 Main Channel", url=MAIN_CHANNEL_LINK),
+            InlineKeyboardButton("📋 Number Group", url=NUMBER_GROUP_LINK)
         ],
-        [
-            InlineKeyboardButton("Filter Prefix", callback_data='filter_prefix'),
-        ],
-        [
-            InlineKeyboardButton("✅ JOIN OUR CHANNEL", url="https://t.me/HACKERA17X"),
-        ]
+        [InlineKeyboardButton("👨‍💻 BOT OWNER", url=BOT_OWNER_LINK)]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    context.user_data["numbers"] = update.message.text
-    await update.message.reply_text(
-        "🛠️ Choose an action to perform on the numbers:\n\n🔧 Options below:",
-        reply_markup=reply_markup
+
+    bot.send_message(
+        chat_id=CHAT_ID,
+        text=message,
+        reply_markup=reply_markup,
+        parse_mode="HTML"
     )
 
-# When a button is clicked
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+def format_message(msg):
+    country_info = get_country_info(msg["number"])
+    return f"""
+✨<b>OTP Received</b>✨
 
-    numbers_text = context.user_data.get("numbers", "")
-    numbers = [line.strip() for line in numbers_text.splitlines() if line.strip()]
+🕒 <b>Time:</b> {msg['time']}
+📞 <b>Number:</b> {msg['number']}
+🌍 <b>Country:</b> {country_info}
+🛠️ <b>Service:</b> {msg['service']}
+🔐 <b>OTP Code:</b> {msg['otp']}
+📝 <b>Msg:</b> {msg['msg']}
+""".strip()
 
-    action = query.data
-    if action == 'add_link':
-        result = "\n".join([f"t.me/+{n.lstrip('+')}" for n in numbers])
-    elif action == 'add_plus':
-        result = "\n".join([f"+{n.lstrip('+')}" for n in numbers])
-    elif action == 'filter_prefix':
-        result = "\n".join([n.lstrip('+').replace("t.me/", "").replace("https://", "") for n in numbers])
-    else:
-        result = "❌ Unknown action!"
-
-    await query.message.reply_text(result)
-
-# Main function to run bot
 def main():
-    import os
-    TOKEN = os.getenv("BOT_TOKEN")
-    app = ApplicationBuilder().token(TOKEN).build()
+    sent_otps = set()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_numbers))
-    app.add_handler(CallbackQueryHandler(button_handler))
+    while True:
+        html = login_and_fetch()
+        messages = parse_messages(html)
 
-    app.run_polling()
+        for msg in messages:
+            if msg['otp'] not in sent_otps:
+                text = format_message(msg)
+                send_to_telegram(text)
+                sent_otps.add(msg['otp'])
 
-if __name__ == '__main__':
+        time.sleep(10)
+
+if __name__ == "__main__":
     main()
