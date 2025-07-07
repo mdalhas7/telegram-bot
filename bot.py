@@ -5,12 +5,12 @@ from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 import phonenumbers
 
 # Telegram credentials
-TOKEN = "YOUR_BOT_TOKEN"
-CHAT_ID = "YOUR_CHAT_ID"
+TOKEN = "8084220581:AAGq85Jf-Uu5ayszUdoFFx6OXHtfQzyeCdU"
+CHAT_ID = "7842518434"
 
 # Website credentials
-USERNAME = "your@email.com"
-PASSWORD = "your_password"
+USERNAME = "ajobcharacter443@gmail.com"
+PASSWORD = "A1#@$vi&"
 LOGIN_URL = "https://www.ivasms.com/portal/live/my_sms"
 
 # Main links
@@ -18,7 +18,7 @@ MAIN_CHANNEL_LINK = "https://t.me/your_main_channel"
 NUMBER_GROUP_LINK = "https://t.me/your_number_group"
 BOT_OWNER_LINK = "https://t.me/your_owner"
 
-bot = Bot(TOKEN)
+bot = (8084220581:AAGq85Jf-Uu5ayszUdoFFx6OXHtfQzyeCdU)
 
 def get_country_info(number):
     try:
