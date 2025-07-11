@@ -1,3 +1,4 @@
-python-telegram-bot>=20.0
-phonenumbers
-requests
+requests==2.31.0
+websockets==11.0.3
+python-socketio==5.11.2
+pytz==2024.1
